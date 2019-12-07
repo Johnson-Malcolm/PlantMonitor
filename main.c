@@ -15,6 +15,11 @@
 #include <AVRXlib/AVRXClocks.h>
 #include <AVRXlib/AVRXSerial.h>
 
+/** Port-B bitmask of all four LEDs. */
+#define F_CPU   2000000UL
+#define LEDS_MASK ((uint8_t)0xF0)
+/** The number of less-significant bits before the LEDs in their port. */
+#define LEDS_OFFSET ((uint8_t)4)
 #define TIMER_PERIOD ((uint16_t)(0.1 * F_CPU / 8 + 0.5))
 /** Timer zero prescaler setting to divide the system clock by 8. */
 #define TIMER_PRESCALE_8 0x04
@@ -28,18 +33,18 @@ volatile char usart_rx_buffer[60];
 volatile char usart_tx_buffer[60];
 
 /** semaphore for ADC sampling **/
-volatile char bADCready = 0;
+volatile char bADCready = 1;
 volatile char aADCready = 0;
 
 /** AVRXSerial structure containing the state of USART C0. */
 volatile XUSARTst usartC0;
 
 //Value of the sensor
-volatile int gForce;
-volatile int gSample;
-volatile uint16_t sample;
-volatile uint16_t force;
+volatile uint16_t moisture;
+volatile uint16_t tempertaure;
 
+/******************************************************************************************/
+/************************************ISR******************************************************/
 ISR(USARTC0_TXC_vect)
 {
 	Tx_Handler(&usartC0);
@@ -52,29 +57,37 @@ ISR(USARTC0_RXC_vect)
 
 ISR(TCC0_OVF_vect) // Use of timer to slowdown the incoming amount of ADC values
 {
-	bADCready = 1;
+	//bADCready = 1;
+	//PORTE_OUT ^= 1UL << 0;
+	//PORTB_OUT = 0xef;
+	//_delay_ms(1000);
+	//PORTB_OUT = 0xff;
+	//_delay_ms(1000);	
 }
 
 ISR(ADCA_CH0_vect)
 {
-	if(bADCready){
-		sample = ADCA_CH0_RES;
-	}
+	moisture = ADCA_CH0_RES;
+}
+
+ISR(ADCB_CH0_vect)
+{
+	tempertaure = PRODSIGNATURES_TEMPSENSE0;
 }
 
 ISR(RTC_OVF_vect){
-	sleep_disable();
-	PORTB_OUT = 0xef;
-	_delay_ms(1000);
-	PORTB_OUT = 0xff;
-	_delay_ms(1000);			
+	//sleep_disable();
+	bADCready = 1;		
 }
 
-void setuplights()
+/******************************************************************************************/
+/************************************  Setup  ******************************************************/
+void init_lights()
 {
 	PORTB_DIR = 0xf0; // Sets the direction of the port B
 	PORTB_OUT = 0xff; // Turns off all the on board led lights
 }
+
 
 void USARTC0_initialize()
 {
@@ -117,7 +130,7 @@ void USARTC0_initialize()
 
 /** Initializes analog-to-digital B hardware, preparing it for other function calls.
 */
-void ADCA_initialize()
+void init_ADCA()
 {
 	ADCA_CTRLA = ADC_ENABLE_bm;	// turns ADC system on
 	ADCA_CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_FREERUN_bm;	//sets resolution - 12-bit result, right adjusted
@@ -133,19 +146,45 @@ void ADCA_initialize()
 	ADCA_CTRLA |= ADC_CH0START_bm;
 }
 
-
-void timer_initialize()
+void init_ADCB()
 {
-	TCC0_PER = 0x280A; // set the range of the counter 15,625
-	TCC0_CTRLA = 0x01;
+	ADCB_CTRLA = ADC_ENABLE_bm;// | ADC_CH0START_bm;
 
-	TCC0_INTCTRLA = PMIC_MEDLVLEX_bm;
-	PMIC_CTRL = PMIC_LOLVLEN_bm|PMIC_MEDLVLEN_bm;
+	//Single sample, unsigned
+	ADCB_CTRLB = ADC_RESOLUTION_12BIT_gc;
+
+	ADCB_REFCTRL = ADC_REFSEL_INTVCC_gc;  // Voltage reference: VCC / 2
+	ADCB_PRESCALER = ADC_PRESCALER_DIV128_gc;
+
+
+	//Channel control
+	ADCB_CH0_CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;
+
+	//ADCB_EVCTRL = ADC_CH
+	ADCB_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN0_gc;//ADC_CH_MUXPOS_PIN7_gc | ADC_CH_MUXPOS_PIN6_gc |ADC_CH_MUXPOS_PIN5_gc;
+	//High priority interrupt when sample complete
+	ADCB_CH0_INTCTRL = ADC_CH_INTMODE_COMPLETE_gc | ADC_CH_INTLVL_HI_gc;
+	PMIC_CTRL |= PMIC_HILVLEN_bm;
+
+	//ADCB_EVCTRL = LIGHT_SENSOR_MASK;
+
+	ADCB_CTRLA |= ADC_CH0START_bm;
+	ADCB_CTRLB |= ADC_FREERUN_bm;
+}
+void init_TCC0()
+{
+	//clock running at 32MHz
+	TCC0_PER = 0xF61C; // 
+	TCC0_CTRLA = 0x07; // set the pre-scaler to 64
+
+
+	TCC0_INTCTRLA = PMIC_LOLVLEX_bm; //set a medium priority interrup when C0 overflows
+	PMIC_CTRL |= PMIC_LOLVLEN_bm;
 }
 
-void init_rtc(){
+void init_RTC(){
 	///////////////RTC timer/////////////////////////
-	CLK_RTCCTRL = CLK_RTCSRC_ULP_gc| CLK_RTCEN_bm;  //RTC setup
+	CLK_RTCCTRL = CLK_RTCSRC_ULP_gc| CLK_RTCEN_bm;  //RTC setup clock running on 1Khz ULP
 	RTC_PER = 0x280A; //1500 max val using the equation (1500ms/1ms =  1500)
 	RTC_CTRL = 0x01;//prescaler 1 used
 
@@ -153,10 +192,44 @@ void init_rtc(){
 	PMIC_CTRL |= PMIC_MEDLVLEX_bm; // turn on medium priority interrupts
 }
 
-void init_sleep(){
-	SLEEP_CTRL = SLEEP_MODE_PWR_SAVE;
+
+
+void init_PORTA(){
+	PORTA_DIR = 0x00;
+	PORTA_PIN3CTRL |= PORT_ISC_INPUT_DISABLE_gc;
 }
 
+void init_PORTE(){
+	PORTE_DIR = 0xef;
+}
+
+void Initialize_Ports(){
+	init_PORTA();
+	init_PORTE();
+	init_lights(); //Port B
+}
+
+void Initialize_Timers(){
+	init_RTC(); //used for sleep mode timing
+	init_TCC0(); //used for adc readings
+}
+
+void Initialize_ADC(){
+	init_ADCA();
+	//init_ADCB();
+}
+
+void Initialize_System(){
+	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+	SetSystemClock(CLK_SCLKSEL_RC32M_gc, CLK_PSADIV_1_gc, CLK_PSBCDIV_1_1_gc);
+	Initialize_Ports();
+	Initialize_Timers();
+	Initialize_ADC();
+	USARTC0_initialize();
+	init_sleep();
+}
+/********************************************************************************************/
+/********************************* Helper Functions *****************************************************/
 void enterSleep(){
 	SLEEP_CTRL |= 0x01;
 }
@@ -165,26 +238,55 @@ void leaveSleep(){
 	SLEEP_CTRL = SLEEP_MODE_PWR_SAVE;
 }
 
-void setupPORTA(){
-	PORTA_DIR = 0x00;
-	PORTA_PIN3CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+void init_sleep(){
+	SLEEP_CTRL = SLEEP_MODE_PWR_SAVE;
+}
+
+void motorON(){
+	PORTE_OUT = 0x01;
+}
+
+void motorOFF(){
+	PORTE_OUT = 0x00;
+}
+
+char getMoistureVal(){
+	if(moisture < 2200){
+		return 'w';
+	}else if(moisture < 2800){
+		return 'm';
+	}else{
+		return 'd';
+	}
+}
+
+void leds_set_count(uint8_t count)
+{
+	//LEDs are active-low
+	count = ~count;
+
+	// Don't clobber non-LED bits on the same port
+	count <<= LEDS_OFFSET;
+	count &= LEDS_MASK;  // Technically unnecessary when LEDS_OFFSET is 4
+
+	//Turn on the one
+	PORTB_OUT |= count;
+	//Turn off the zeros
+	PORTB_OUT &= count | ~LEDS_MASK;
 }
 
 int main(void)
 {
 	static char input_buffer[32], output_buffer[32];
 	
-	//set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-	SetSystemClock(CLK_SCLKSEL_RC32M_gc, CLK_PSADIV_1_gc, CLK_PSBCDIV_1_1_gc);
+	char moistureVal, tempVal;
+	
 	cli();
-	setuplights();
-	//init_rtc();
+	Initialize_System();
+
 	//init_sleep();
 	//enterSleep();
-	setupPORTA();
-	timer_initialize();
-	USARTC0_initialize();
-	ADCA_initialize();
+	//ADCB_initialize();
 	//sleep_enable();
 	sei();
 	//sleep_cpu();
@@ -193,16 +295,45 @@ int main(void)
     /* Replace with your application code */
     while (1) 
     {
-		//PORTB_OUT = 0xdf;
-		//_delay_ms(1000);
-		//PORTB_OUT = 0xff;
-		//_delay_ms(1000);
 		if (bADCready==1) {
 			bADCready = 0;
-			sprintf(output_buffer, "%d moisture\r\n", sample );
-			USART_send(&usartC0, output_buffer); // prints out light sample
-			USART_RxFlush(&usartC0); // clear rx buffer
+			moistureVal = getMoistureVal();
+			sprintf(output_buffer, "%c moisture\r\n", moistureVal);
+			
+			USART_send(&usartC0, output_buffer);
+			USART_RxFlush(&usartC0);
 		}
     }
 }
+
+
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
+/************************************************************************************************************************************/
+/***************************************************************************************************************************************/
 
