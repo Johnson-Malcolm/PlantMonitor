@@ -1,3 +1,4 @@
+
 /*
  * FinalProject.c
  *
@@ -41,7 +42,7 @@ volatile XUSARTst usartC0;
 
 //Value of the sensor
 volatile uint16_t moisture;
-volatile uint16_t tempertaure;
+volatile uint16_t voltage;
 
 /******************************************************************************************/
 /************************************ISR******************************************************/
@@ -72,7 +73,7 @@ ISR(ADCA_CH0_vect)
 
 ISR(ADCB_CH0_vect)
 {
-	tempertaure = PRODSIGNATURES_TEMPSENSE0;
+	voltage = ADCB_CH0_RES;
 }
 
 ISR(RTC_OVF_vect){
@@ -133,7 +134,7 @@ void USARTC0_initialize()
 void init_ADCA()
 {
 	ADCA_CTRLA = ADC_ENABLE_bm;	// turns ADC system on
-	ADCA_CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_FREERUN_bm;	//sets resolution - 12-bit result, right adjusted
+	ADCA_CTRLB = ADC_RESOLUTION_12BIT_gc; //| ADC_FREERUN_bm;	//sets resolution - 12-bit result, right adjusted
 	ADCA_REFCTRL = ADC_REFSEL_INTVCC_gc; //selects the reference for the ADC INTVCC2 VCC/2
 	ADCA_PRESCALER = ADC_PRESCALER_DIV512_gc; //defines the ADC clock relative to the peripheral clock DIV512
 	
@@ -141,35 +142,21 @@ void init_ADCA()
 	ADCA_CH0_INTCTRL = ADC_CH_INTMODE_COMPLETE_gc | ADC_CH_INTLVL_HI_gc;//enables interrupt when ADC is complete, with HI priority
 	
 	PMIC_CTRL |= PMIC_HILVLEN_bm;//enables hi level interrupts to occur
-
-	ADCA_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN3_gc;
-	ADCA_CTRLA |= ADC_CH0START_bm;
 }
 
 void init_ADCB()
 {
-	ADCB_CTRLA = ADC_ENABLE_bm;// | ADC_CH0START_bm;
+	ADCB_CTRLA = ADC_ENABLE_bm;	// turns ADC system on
+	ADCB_CTRLB = ADC_RESOLUTION_12BIT_gc ;//| ADC_FREERUN_bm;	//sets resolution - 12-bit result, right adjusted
+	ADCB_REFCTRL = ADC_REFSEL_INTVCC_gc; //selects the reference for the ADC INTVCC2 VCC/2
+	ADCB_PRESCALER = ADC_PRESCALER_DIV512_gc; //defines the ADC clock relative to the peripheral clock DIV512
+	
+	ADCB_CH0_CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc | ADC_CH_GAIN_1X_gc;//sets channel inout and gain
+	ADCB_CH0_INTCTRL = ADC_CH_INTMODE_COMPLETE_gc | ADC_CH_INTLVL_HI_gc;//enables interrupt when ADC is complete, with HI priority
+	
+	PMIC_CTRL |= PMIC_HILVLEN_bm;//enables hi level interrupts to occur
 
-	//Single sample, unsigned
-	ADCB_CTRLB = ADC_RESOLUTION_12BIT_gc;
-
-	ADCB_REFCTRL = ADC_REFSEL_INTVCC_gc;  // Voltage reference: VCC / 2
-	ADCB_PRESCALER = ADC_PRESCALER_DIV128_gc;
-
-
-	//Channel control
-	ADCB_CH0_CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;
-
-	//ADCB_EVCTRL = ADC_CH
-	ADCB_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN0_gc;//ADC_CH_MUXPOS_PIN7_gc | ADC_CH_MUXPOS_PIN6_gc |ADC_CH_MUXPOS_PIN5_gc;
-	//High priority interrupt when sample complete
-	ADCB_CH0_INTCTRL = ADC_CH_INTMODE_COMPLETE_gc | ADC_CH_INTLVL_HI_gc;
-	PMIC_CTRL |= PMIC_HILVLEN_bm;
-
-	//ADCB_EVCTRL = LIGHT_SENSOR_MASK;
-
-	ADCB_CTRLA |= ADC_CH0START_bm;
-	ADCB_CTRLB |= ADC_FREERUN_bm;
+	//ADCB_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN3_gc;
 }
 void init_TCC0()
 {
@@ -196,8 +183,11 @@ void init_RTC(){
 
 void init_PORTA(){
 	PORTA_DIR = 0x00;
-	PORTA_PIN3CTRL |= PORT_ISC_INPUT_DISABLE_gc;
-}
+	PORTA_PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+	PORTA_PIN0CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+	PORTA_PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+
+}	
 
 void init_PORTE(){
 	PORTE_DIR = 0xef;
@@ -216,7 +206,7 @@ void Initialize_Timers(){
 
 void Initialize_ADC(){
 	init_ADCA();
-	//init_ADCB();
+	init_ADCB();
 }
 
 void Initialize_System(){
@@ -275,15 +265,32 @@ void leds_set_count(uint8_t count)
 	PORTB_OUT &= count | ~LEDS_MASK;
 }
 
+void readMoisture(){
+	ADCA_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN1_gc;
+	ADCA_CTRLA |= ADC_CH0START_bm;
+}
+void readTemperature(){
+	ADCB_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN8_gc;
+	ADCB_CTRLA |= ADC_CH0START_bm;
+}
+
+void readRHVoltage(){
+	ADCB_CH0_MUXCTRL = ADC_CH_MUXPOS_PIN10_gc;
+	ADCB_CTRLA |= ADC_CH0START_bm;
+}
+uint16_t getTemperatureF(){
+	return (((voltage/1000.0)-0.5)*100)*9.0/5.0+32;
+}
+
 int main(void)
 {
 	static char input_buffer[32], output_buffer[32];
 	
 	char moistureVal, tempVal;
+	uint16_t temperatureF, RHvoltage;
 	
 	cli();
 	Initialize_System();
-
 	//init_sleep();
 	//enterSleep();
 	//ADCB_initialize();
@@ -295,13 +302,50 @@ int main(void)
     /* Replace with your application code */
     while (1) 
     {
+		readTemperature();
+		_delay_ms(500);
+
+		temperatureF = getTemperatureF();
+		
+		readRHVoltage();
+		_delay_ms(500);
+		RHvoltage = voltage;
+		
+		
+		readMoisture();
+		_delay_ms(2000);
+		
 		if (bADCready==1) {
 			bADCready = 0;
 			moistureVal = getMoistureVal();
-			sprintf(output_buffer, "%c moisture\r\n", moistureVal);
+			
+			//sprintf(output_buffer, "%d temperature Voltage", tempVoltage);
+
+
 			
 			USART_send(&usartC0, output_buffer);
 			USART_RxFlush(&usartC0);
+			
+			sprintf(output_buffer, "%d temperature", temperatureF);
+
+			USART_send(&usartC0, output_buffer);
+			USART_RxFlush(&usartC0);
+			
+			sprintf(output_buffer, "%d RHvoltage", RHvoltage);
+
+			USART_send(&usartC0, output_buffer);
+			USART_RxFlush(&usartC0);
+			
+			//sprintf(output_buffer, "%d moisture", moisture);
+
+			sprintf(output_buffer, "%c moisture\r\n", moistureVal);
+		
+	
+			USART_send(&usartC0, output_buffer);
+			USART_RxFlush(&usartC0);
+
+			
+			
 		}
     }
 }
