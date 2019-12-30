@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Smart Farm</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Ubuntu" rel="stylesheet">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Font Awesome -->
+  <script defer src="https://use.fontawesome.com/releases/v5.0.7/js/all.js"></script>
+
+  <!-- Bootstrap Scripts -->
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  <!-- CanvasJS Scripts -->
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/canvasjs/1.7.0/canvasjs.js"></script>
+
+  <script type="text/javascript" src="scripts.js"></script>
+  <script type="text/javascript" src="data.js"></script>
+</head>
+
+<body>
+
+  <section class="colored-section" id="title">
+
+    <div class="container-fluid">
+
+      <!-- Nav Bar -->
+
+      <nav class="navbar navbar-expand-lg">
+
+        <a class="navbar-brand" href="">Smart Farm</a>
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarTogglerDemo02">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarTogglerDemo02">
+
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="#Summary">Summary</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#Graphs">Graphs</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#About">Notes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#cta">About</a>
+            </li>
+          </ul>
+
+        </div>
+      </nav>
+
+
+      <!-- Title -->
+
+      <div class="row">
+
+        <div class="col-lg-6">
+          <h1 class="big-heading">Automatically Watering Your Plants</h1>
+        </div>
+
+        <div class="col-lg-6">
+          <img class="title-image" src="images/botanic.png" alt="plant picture">
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- Summary -->
+
+  <section class="white-section" id="Summary">
+
+    <div class="container-fluid">
+
+      <div class="row">
+        <div class="feature-box col-lg-4">
+          <i class="icon fas fa-tint fa-4x"></i>
+          <h3 class="feature-title">Automatic</h3>
+          <p>Uses monitored data to ensure plant is comfortable</p>
+        </div>
+
+        <div class="feature-box col-lg-4">
+          <i class="icon fas fa-bullseye fa-4x"></i>
+          <h3 class="feature-title">Accurate</h3>
+          <p>Collects data from sensors every 5 hours</p>
+        </div>
+
+        <div class="feature-box col-lg-4">
+          <i class="icon fas fa-cloud fa-4x"></i>
+          <h3 class="feature-title">Conected</h3>
+          <p>Easy to read graphs from system availiable online</p>
+        </div>
+      </div>
+
+
+    </div>
+  </section>
+
+
+  <!-- Graphs -->
+
+  <section class="colored-section" id="Graphs">
+
+    <div id="testimonial-carousel" class="carousel slide" data-ride="false">
+      <div class="carousel-inner">
+        <div class="carousel-item active container-fluid" id = "moistureTableDiv">
+          <h1>Plant Moisture</h1>
+          <table class="table table-bordered table-hover moistureTbl" id="moistureTable"> </table>
+          <em>Last 5 readings</em>
+        </div>
+        <div class="carousel-item container-fluid">
+          <h1>Plant Temperature</h1>
+          <div id="chartContainer" class = "chartContainer" ></div>
+          <em>Last 10 readings</em>
+        </div>
+        <div class="carousel-item container-fluid">
+          <h1>Water Consumption</h1>
+          <h2 style="display: inline;"id="waterVar"></h2><span style="margin-left:4em"><em>Over Last 10 readings</em></span>
+          <div id="chartContainer1" class = "chartContainer1" ></div>
+        </div>
+      </div>
+      <a class="carousel-control-prev" href="#testimonial-carousel" role="button" data-slide="prev">
+    <span class="carousel-control-prev-icon"></span>
+      </a>
+      <a class="carousel-control-next" href="#testimonial-carousel" role="button" data-slide="next">
+    <span class="carousel-control-next-icon"></span>
+      </a>
+    </div>
+
+  </section>
+
+
+  <!-- Notes -->
+
+  <section class="white-section" id="About">
+
+    <h2 class="section-heading">Notes and References</h2>
+
+
+    <div class="row">
+
+      <div class="ref-column col-lg-4 col-md-6">
+        <div class="card border-dark mb-3">
+          <div class="card-header">
+            <h3>Bill of Materials</h3>
+          </div>
+          <div class="card-body">
+            <p>Atmel A3B1</p>
+            <p>Raspbery Pi</p>
+            <p>Lm 35 sensor</p>
+            <p>Capacitive soil sensor</p>
+            <p>Water Level Sensor</p>
+            <p>6v DC Water Pump</p>
+            <p>Jumper Wires</p>
+            <p>Wood</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref-column col-lg-4 col-md-6">
+        <div class="card border-dark mb-3">
+          <div class="card-header">
+            <h3>Protocols Used</h3>
+          </div>
+          <div class="card-body">
+            <p>USART</p>
+            <p>scp</p>
+            <p>PWM Motor Control</p>
+            <p>ADC</p>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="ref-column col-lg-4">
+        <div class="card border-dark mb-3">
+          <div class="card-header">
+            <h3>References</h3>
+          </div>
+          <div class="card-body">
+            <p>FlatIcon.io for pictures</p>
+            <p>CanvasJS for graphs</p>
+            <a href="https://www.instructables.com/id/12V-Motor-Control-With-5V-Arduino-and-NPN-Transist/">Instructables</a><br>
+            <a href="Maxembeded.com">Maxembeded</a><br>
+            <a href="Embeddedtutorials.wordpress.com">Embedded Tutorials</a>
+
+          </div>
+        </div>
+      </div>
+
+
+
+    </div>
+
+  </section>
+
+
+  <!-- Call to Action -->
+
+  <section class="colored-section" id="cta">
+
+    <div class="container-fluid">
+
+      <h3 class="big-heading">Always Keeping Your Plants Healthy.</h3>
+    </div>
+  </section>
+
+<script type="text/javascript">
+  init(data);
+</script>
+  <!-- Footer -->
+
+  <footer class="white-section" id="footer">
+    <div class="container-fluid">
+      <i class="social-icon fab fa-facebook-f"></i>
+      <i class="social-icon fab fa-twitter"></i>
+      <i class="social-icon fab fa-instagram"></i>
+      <i class="social-icon fas fa-envelope"></i>
+    </div>
+  </footer>
+
+
+</body>
+
+</html>
